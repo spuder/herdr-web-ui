@@ -1,0 +1,121 @@
+.forge-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* one card of hosts, a row each: icon, host and where its credential comes from, then the buttons */
+.forge-hosts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.forge-host {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+}
+
+.forge-host + .forge-host {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.forge-host-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  color: var(--text-dim);
+}
+
+.forge-host-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.forge-kind {
+  margin-left: var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.forge-host-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* a Test result sits under the host's name, the width of the row */
+.forge-check {
+  display: flex;
+  grid-column: 2 / -1;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.forge-check svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}
+
+.forge-check-good {
+  background: var(--status-done-tint);
+  color: var(--status-done);
+}
+
+.forge-check-bad {
+  background: var(--danger-tint);
+  color: var(--danger-text);
+}
+
+.forge-check-warning {
+  display: block;
+}
+
+.forge-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.forge-add-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.forge-error {
+  color: var(--danger-text);
+}
+
+@media (max-width: 640px) {
+  .forge-host {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .forge-host-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}

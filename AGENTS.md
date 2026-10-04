@@ -31,7 +31,8 @@ The app is only a bridge: herdr owns every pty, scrollback and agent state.
 - HTTP and WS shapes live in `shared/protocol.ts`; change both sides through it and add a contract test (`server/api.contract.test.ts` for endpoints).
 - Every push to `main` redeploys the site and the demo. A new endpoint or WS frame needs an answer in `site/demo/transport.ts`, or the demo gets a 404.
 - Every error body is `{ error: { code, message } }`, built only with the helpers in `server/http.ts`.
-- Mutating machine, device and update POSTs require same-origin plus the `x-herdr-machine: 1` or `x-herdr-update: 1` header.
+- Mutating machine, device, update and git-host POSTs require same-origin plus the `x-herdr-machine: 1`, `x-herdr-update: 1` or `x-herdr-forge: 1` header.
+- Git-host tokens (`server/forges/`) never leave the server except to the host they were saved for: no answer, log or error message carries one.
 - Route order in `createServer().fetch` matters: bridge, then machines, then `/ws`, then the `/api/*` handlers, then a 404 for the rest of `/api/*`, then static files.
 
 ## Code conventions

@@ -31,6 +31,7 @@ import type { PaneScrollInfo } from "../../shared/herdr-api.generated.ts";
 import type { HerdrUpdateStatus, UpdateCommand, UpdateStatus } from "../../shared/update.ts";
 import type { AlertPrefs } from "../../shared/notify-policy.ts";
 import type { VoiceConfigUpdate, VoiceStatus } from "../../shared/voice.ts";
+import type { ForgeCheck, ForgeHostsReport, SaveForgeHostRequest } from "../../shared/protocol.ts";
 
 /** Settings → Phone: what Tailscale on the server's PC already serves, or the command to run. */
 export function fetchRemoteAccess(): Promise<RemoteAccess> {
@@ -480,4 +481,32 @@ export async function saveVoiceConfig(update: VoiceConfigUpdate): Promise<VoiceS
   const response = await fetch("/api/voice/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(update) });
   if (!response.ok) throw await errorFrom("/api/voice/config", response);
   return (await response.json()) as VoiceStatus;
+}
+
+/** GET /api/forge/hosts: this PC's git hosts and where each one's credential comes from. */
+export async function fetchForgeHosts(): Promise<ForgeHostsReport> {
+  const response = await fetch("/api/forge/hosts", { cache: "no-store" });
+  if (!response.ok) throw await errorFrom("/api/forge/hosts", response);
+  return (await response.json()) as ForgeHostsReport;
+}
+
+async function postForge<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json", "x-herdr-forge": "1" }, body: JSON.stringify(body) });
+  if (!response.ok) throw await errorFrom(path, response);
+  return (await response.json()) as T;
+}
+
+/** POST /api/forge/hosts: ApiError 422 `forge_auth` when the host refuses the token, which is then not saved. */
+export function saveForgeHost(request: SaveForgeHostRequest): Promise<ForgeHostsReport> {
+  return postForge("/api/forge/hosts", request);
+}
+
+/** POST /api/forge/hosts/remove: drops the saved token; a host added by hand goes with it. */
+export function removeForgeHost(url: string): Promise<ForgeHostsReport> {
+  return postForge("/api/forge/hosts/remove", { url });
+}
+
+/** POST /api/forge/hosts/test: who the credential in use signs in as. */
+export function testForgeHost(url: string): Promise<ForgeCheck> {
+  return postForge("/api/forge/hosts/test", { url });
 }

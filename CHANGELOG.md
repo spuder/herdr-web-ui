@@ -8,6 +8,12 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- **Settings → Git hosts** lists the git hosts a PC can sign in to (github.com, gitlab.com,
+  codeberg.org and hosts added by hand, GitLab and Gitea/Forgejo included) and where each one's
+  credential comes from: a token saved there, the GitHub CLI's sign-in, or `GH_TOKEN`-style
+  variables, in that order. A token is checked with its host before it is saved, stays on the
+  server and is never shown again; Test shows who it signs in as and warns about scopes broader
+  than reading. It is the first step toward starting a workspace from an issue, branch or pull request.
 - `HERDR_WEB_PASTE_DIR` saves pasted and attached files to one directory instead of
   `.herdr-web-ui/` in each pane's project. It is read by the server, for the panes of its own
   PC; a remote PC keeps the default.

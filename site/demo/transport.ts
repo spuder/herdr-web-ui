@@ -11,7 +11,7 @@
  * type; agent panes show one notice instead of a TUI. A message sent from a chat gets a demo answer.
  * What does not: files, images, push and remote PCs, which need a real machine.
  */
-import type { AgentStatus, ConversationTurn, Machine, MachineEvent, ServerMessage, SessionSnapshot, UsageReport, WorkspaceCreated } from "../../shared/protocol.ts";
+import type { AgentStatus, ConversationTurn, ForgeCheck, ForgeHostsReport, Machine, MachineEvent, ServerMessage, SessionSnapshot, UsageReport, WorkspaceCreated } from "../../shared/protocol.ts";
 import { VOICE_DEFAULTS, type VoiceStatus } from "../../shared/voice.ts";
 import { CHATS, PROMPT, SPECS } from "./fixtures.ts";
 import machinesFixture from "./fixtures/machines.json";
@@ -22,6 +22,15 @@ import terminalFixture from "./fixtures/terminal.json";
 
 const DEMO_VERSION = "demo";
 const PROMPT_ANSWER_TURN_MS = 2600;
+/** Settings → Git hosts: one host per credential source, all made up. */
+const FORGE_HOSTS: ForgeHostsReport = {
+  hosts: [
+    { url: "https://github.com", kind: "github", builtin: true, source: "cli", last4: null, login: null, scopes: null, expires_at: null, env_name: null },
+    { url: "https://gitlab.com", kind: "gitlab", builtin: true, source: null, last4: null, login: null, scopes: null, expires_at: null, env_name: null },
+    { url: "https://codeberg.org", kind: "gitea", builtin: true, source: null, last4: null, login: null, scopes: null, expires_at: null, env_name: null },
+    { url: "https://gitlab.example.com", kind: "gitlab", builtin: false, source: "token", last4: "a3f9", login: "m.okafor", scopes: ["read_api", "read_repository"], expires_at: "2027-01-02T00:00:00.000Z", env_name: null },
+  ],
+};
 const CHAT_ANSWER_MS = 2400;
 /** the recording's gaps, capped so the replay stays brisk */
 const MAX_FRAME_GAP_MS = 500;
@@ -370,6 +379,9 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
     return json({ workspace_id: id, pane_id: pane.pane_id, agent_started: agent !== null } satisfies WorkspaceCreated);
   }
   // no key in the demo: the app falls back to the browser's own speech recognition
+  if (path === "/api/forge/hosts" && method === "GET") return json(FORGE_HOSTS, 200, { "cache-control": "no-store" });
+  if (path === "/api/forge/hosts/test") return json({ url: "https://github.com", source: "cli", login: "octo-dev", scopes: ["repo", "read:org"], expires_at: null, missing_scopes: [], broad_scopes: ["repo"] } satisfies ForgeCheck);
+  if (path.startsWith("/api/forge/hosts")) return error("demo", "the demo saves no tokens", 409);
   if (path === "/api/voice") return json({ configured: false, source: null, ...VOICE_DEFAULTS } satisfies VoiceStatus, 200, { "cache-control": "no-store" });
   if (path === "/api/voice/config") return error("demo", "the demo saves no OpenAI key", 409);
   if (path === "/api/voice/transcribe") return error("voice_not_configured", "transcription is unavailable in the demo", 409);

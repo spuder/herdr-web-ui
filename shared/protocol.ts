@@ -125,6 +125,13 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *  DELETE /api/push/subscribe { endpoint }      -> 204
  *  POST   /api/push/test      { endpoint }      -> 204 | 404 subscription_not_found | 502 push_failed
  *  GET    /api/usage[?refresh=1]         -> UsageReport (plan limits of the AI subscriptions signed in on this PC)
+ *  GET    /api/forge/hosts               -> ForgeHostsReport (the git hosts this PC knows and where each one's
+ *         credential comes from; never a token)
+ *  POST   /api/forge/hosts { url, kind, token } -> ForgeHostsReport (checks the token with the host first;
+ *         401/403 forge_auth, and nothing is saved, when the host refuses it)
+ *  POST   /api/forge/hosts/remove { url } -> ForgeHostsReport (drops the saved token, and a host added by hand)
+ *  POST   /api/forge/hosts/test { url }  -> ForgeCheck (signs in with the credential in use)
+ *         The three POSTs need the `x-herdr-forge: 1` header.
  *  Errors: non-2xx with { error: { code, message } }
  *
  *  Access: every route above except /api/health, /api/auth and /api/devices/pair, plus the
@@ -184,6 +191,63 @@ export interface ProviderUsage {
 /** GET /api/usage: only providers a CLI on this PC is signed in to are listed, once per account. */
 export interface UsageReport {
   readonly providers: readonly ProviderUsage[];
+}
+
+/**
+ * A git host the app can sign in to. Gitea and Forgejo share one API, so `gitea` covers both.
+ * Every kind can hold a credential; starting a workspace from an issue, branch or pull request
+ * is built for GitHub first, and the other kinds answer `forge_not_supported` there until then.
+ */
+export type ForgeKind = "github" | "gitlab" | "gitea";
+
+/**
+ * Where a host's credential comes from, in the order they are tried: a token saved in Settings,
+ * the host's CLI sign-in (`gh`), an environment variable, or none (public repositories only).
+ */
+export type ForgeCredentialSource = "token" | "cli" | "env" | null;
+
+export interface ForgeHostStatus {
+  /** the host's web address, `https://github.com` or `https://git.example.com/gitea`: the key of the host */
+  readonly url: string;
+  readonly kind: ForgeKind;
+  /** github.com, gitlab.com and codeberg.org are always listed; a host added by hand is not */
+  readonly builtin: boolean;
+  readonly source: ForgeCredentialSource;
+  /** a saved token's last four characters; null for any other source */
+  readonly last4: string | null;
+  /** what the host said about a saved token when it was saved; null when it did not say */
+  readonly login: string | null;
+  readonly scopes: readonly string[] | null;
+  /** ISO 8601 */
+  readonly expires_at: string | null;
+  /** the variable a credential is read from, when `source` is `env` */
+  readonly env_name: string | null;
+}
+
+export interface ForgeHostsReport {
+  readonly hosts: readonly ForgeHostStatus[];
+}
+
+/** POST /api/forge/hosts/test: who the credential in use signs in as, and what it may do. */
+export interface ForgeCheck {
+  readonly url: string;
+  readonly source: ForgeCredentialSource;
+  /** null when no credential was found: the host was only reached */
+  readonly login: string | null;
+  /** null when the host does not list a token's scopes (GitHub fine-grained tokens, Gitea) */
+  readonly scopes: readonly string[] | null;
+  readonly expires_at: string | null;
+  /** scopes it lacks for listing issues, branches and pull requests */
+  readonly missing_scopes: readonly string[];
+  /** scopes beyond reading that it holds (write access, the whole API) */
+  readonly broad_scopes: readonly string[];
+}
+
+/** POST /api/forge/hosts. */
+export interface SaveForgeHostRequest {
+  url: string;
+  kind: ForgeKind;
+  token: string;
 }
 
 /** How a request got in, when it did. */

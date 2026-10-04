@@ -3,11 +3,12 @@ import { chmodSync, mkdtempSync, existsSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { createServer } from "./index.ts";
-import type { AgentKind, AgentStatus, ApiError, HealthAuth, PushKey, RemoteAccess, SessionSnapshot, PaneReadResult, UsageReport, WorkspaceCreated, WorktreeListing, WorktreeOpened, WorktreeRemoved } from "../shared/protocol.ts";
+import type { AgentKind, AgentStatus, ApiError, HealthAuth, PushKey, RemoteAccess, SessionSnapshot, PaneReadResult, UsageReport, ForgeHostsReport, WorkspaceCreated, WorktreeListing, WorktreeOpened, WorktreeRemoved } from "../shared/protocol.ts";
 import { HerdrUpdater } from "./herdr-update.ts";
 import type { HerdrUpdateStatus } from "../shared/update.ts";
 import { UsageService } from "./usage.ts";
 import { VoiceService } from "./voice.ts";
+import { ForgeService } from "./forges/index.ts";
 import { herdrRpc, ping, sessionSnapshot, tabCreate, workspaceCreate, workspaceClose } from "./herdr/client.ts";
 import { startFakePushService, type FakePushService } from "./push.fake.ts";
 import { descriptorPath, type BridgeDescriptor } from "./bridge.ts";
@@ -94,6 +95,47 @@ describe("voice API", () => {
     } finally {
       open.stop(); gated.stop(); provider.stop(true);
       rmSync(voiceState, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("forge API", () => {
+  it("keeps tokens on the server, refuses writes from elsewhere and stays behind the token gate", async () => {
+    const forgeState = mkdtempSync(join(tmpdir(), "herdr-forge-contract-"));
+    const token = "ghp_contract0123456789wxyz";
+    const forges = new ForgeService({
+      stateDir: forgeState, env: {}, run: async () => null,
+      fetch: async (url, init) => new Headers(init.headers).get("authorization") === `Bearer ${token}` && url === "https://api.github.com/user"
+        ? Response.json({ login: "octo-dev" }, { headers: { "x-oauth-scopes": "repo" } })
+        : new Response("", { status: 401 }),
+    });
+    const open = createServer({ port: 0, stateDir: forgeState, forges });
+    const gated = createServer({ port: 0, stateDir: forgeState, forges, token: "test-forge-token" });
+    const at = (path: string) => `http://localhost:${open.port}${path}`;
+    const save = (headers: Record<string, string>, value = token) => fetch(at("/api/forge/hosts"), { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ url: "https://github.com", kind: "github", token: value }) });
+    try {
+      expect((await fetch(`http://localhost:${gated.port}/api/forge/hosts`)).status).toBe(401);
+      const listed = await fetch(at("/api/forge/hosts"));
+      expect(listed.headers.get("cache-control")).toBe("no-store");
+      expect((await listed.json() as ForgeHostsReport).hosts.map((host) => host.url)).toEqual(["https://github.com", "https://gitlab.com", "https://codeberg.org"]);
+
+      expect((await save({})).status).toBe(403);
+      expect((await save({ "x-herdr-forge": "1", "sec-fetch-site": "cross-site" })).status).toBe(403);
+      const refused = await save({ "x-herdr-forge": "1" }, "ghp_wrong");
+      expect(refused.status).toBe(422);
+      expect((await refused.json() as ApiError).error.code).toBe("forge_auth");
+
+      expect((await save({ "x-herdr-forge": "1" })).status).toBe(200);
+      const report = await (await fetch(at("/api/forge/hosts"))).text();
+      expect(report).not.toContain(token);
+      expect(JSON.parse(report).hosts[0]).toMatchObject({ source: "token", last4: "wxyz", login: "octo-dev" });
+      expect(statSync(join(forgeState, "forges.json")).mode & 0o777).toBe(0o600);
+
+      const checked = await fetch(at("/api/forge/hosts/test"), { method: "POST", headers: { "content-type": "application/json", "x-herdr-forge": "1" }, body: JSON.stringify({ url: "https://github.com" }) });
+      expect(await checked.json()).toMatchObject({ login: "octo-dev", broad_scopes: ["repo"] });
+    } finally {
+      open.stop(); gated.stop();
+      rmSync(forgeState, { recursive: true, force: true });
     }
   });
 });

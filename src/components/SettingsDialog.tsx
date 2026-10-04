@@ -19,6 +19,7 @@ import { VOICE_CONFIG_EVENT } from "../lib/voice.ts";
 import { moveInOrder, orderProviders, PROVIDER_MARK, PROVIDER_NAME, usageName, useUsage } from "../lib/usage.ts";
 import { AgentMark } from "./AgentMark.tsx";
 import { DevicesPanel } from "./DevicesPanel.tsx";
+import { ForgeSettings } from "./ForgeSettings.tsx";
 import { PhonePanel } from "./PhonePanel.tsx";
 import { PushTestControls } from "./PushTestControls.tsx";
 import { playAlertSound, unlockAlertSound } from "../lib/alertSound.ts";
@@ -557,6 +558,11 @@ export function SettingsDialog({ open, onClose, actions, updates, auth, onEnable
               <Toggle label={t("Update PC bridges automatically")} checked={pcSettings.auto_update_bridges} onChange={(auto_update_bridges) => void updatePcSettings({ auto_update_bridges })} />
             </div>}
             {pcSettingsError && <p className="settings-hint" role="alert">{pcSettingsError}</p>}
+          </section>
+
+          <section className="settings-section">
+            <h3>{t("Git hosts")}</h3>
+            <ForgeSettings open={open} />
           </section>
 
           <section className="settings-section">
